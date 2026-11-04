@@ -39,8 +39,29 @@ function parseBody(body: unknown): Parsed | string {
 }
 
 function errorStatus(error: unknown): number | undefined {
-  const status = (error as { status?: unknown })?.status;
+  const candidate = error as {
+    status?: unknown;
+    statusCode?: unknown;
+    response?: { status?: unknown };
+    cause?: { status?: unknown };
+    error?: { code?: unknown };
+  };
+  const statuses = [
+    candidate?.status,
+    candidate?.statusCode,
+    candidate?.response?.status,
+    candidate?.cause?.status,
+    candidate?.error?.code,
+  ];
+  const status = statuses.find((value) => typeof value === "number");
   return typeof status === "number" ? status : undefined;
+}
+
+function errorMessage(error: unknown): string {
+  const candidate = error as { message?: unknown; response?: { data?: { error?: { message?: unknown } } } };
+  const nestedMessage = candidate?.response?.data?.error?.message;
+  if (typeof nestedMessage === "string") return nestedMessage;
+  return typeof candidate?.message === "string" ? candidate.message : "";
 }
 
 export async function POST(request: Request) {
@@ -91,9 +112,16 @@ export async function POST(request: Request) {
   } catch (error) {
     // Log only the status: SDK messages can echo request details.
     const status = errorStatus(error);
+    const message = errorMessage(error);
     console.error("Gemini request failed", status ?? "no status");
     if (status === 429) {
       return NextResponse.json({ error: "Too many requests right now. Please wait a moment and try again." }, { status: 429 });
+    }
+    if (status === 403 || /free tier|billing|project unavailable|permission_denied/i.test(message)) {
+      return NextResponse.json(
+        { error: "Gemini access is denied for this project. Enable billing in Google AI Studio or use an API key from a project with Gemini access." },
+        { status: 503 },
+      );
     }
     return NextResponse.json({ error: "The AI service could not answer. Please try again." }, { status: 502 });
   }

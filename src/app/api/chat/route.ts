@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getChapter } from "@/content/chapters";
-import { isGeminiConfigured, streamChat, type ChatTurn } from "@/lib/gemini";
+import { isGrokConfigured, streamChat, type ChatTurn } from "@/lib/grok";
 import { buildSystemPrompt, isDoubtMode } from "@/lib/prompts";
 import type { DoubtMode } from "@/lib/types";
 
@@ -77,8 +77,8 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: parsed }, { status: 400 });
   }
 
-  if (!isGeminiConfigured()) {
-    return NextResponse.json({ error: "The AI service is not configured on the server yet." }, { status: 503 });
+  if (!isGrokConfigured()) {
+    return NextResponse.json({ error: "Grok is not configured on the server yet." }, { status: 503 });
   }
 
   try {
@@ -89,15 +89,14 @@ export async function POST(request: Request) {
     const readable = new ReadableStream<Uint8Array>({
       async start(controller) {
         try {
-          for await (const chunk of stream) {
+          for await (const text of stream) {
             if (cancelled) return;
-            const text = chunk.text();
             if (text) controller.enqueue(encoder.encode(text));
           }
           controller.close();
         } catch (error) {
           if (cancelled) return;
-          console.error("Gemini stream failed", errorStatus(error) ?? "no status");
+          console.error("Grok stream failed", errorStatus(error) ?? "no status");
           controller.error(new Error("stream failed"));
         }
       },
@@ -113,13 +112,13 @@ export async function POST(request: Request) {
     // Log only the status: SDK messages can echo request details.
     const status = errorStatus(error);
     const message = errorMessage(error);
-    console.error("Gemini request failed", status ?? "no status");
+    console.error("Grok request failed", status ?? "no status");
     if (status === 429) {
       return NextResponse.json({ error: "Too many requests right now. Please wait a moment and try again." }, { status: 429 });
     }
     if (status === 403 || /free tier|billing|project unavailable|permission_denied/i.test(message)) {
       return NextResponse.json(
-        { error: "Gemini access is denied for this project. Enable billing in Google AI Studio or use an API key from a project with Gemini access." },
+        { error: "Grok access is denied for this API key. Check your xAI API credits and key permissions." },
         { status: 503 },
       );
     }

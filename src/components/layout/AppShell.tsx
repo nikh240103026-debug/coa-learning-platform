@@ -3,7 +3,7 @@
 import { useState, type ReactNode } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Bookmark, BookOpen, Cpu, GraduationCap, LayoutDashboard, Menu, MessageCircleQuestion, Search, X } from "lucide-react";
+import { Bookmark, BookOpen, Cpu, GraduationCap, LayoutDashboard, LogOut, Menu, MessageCircleQuestion, Search, X } from "lucide-react";
 import { CommandPalette, OPEN_PALETTE_EVENT } from "@/components/CommandPalette";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { Dialog } from "@/components/ui/Dialog";
@@ -60,6 +60,11 @@ function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
 export function AppShell({ children }: { children: ReactNode }) {
   const [drawerOpen, setDrawerOpen] = useState(false);
 
+  async function logout() {
+    await fetch("/api/auth/logout", { method: "POST" });
+    window.location.href = "/login";
+  }
+
   return (
     <>
       <a
@@ -76,7 +81,10 @@ export function AppShell({ children }: { children: ReactNode }) {
         <div className="flex-1 overflow-y-auto p-3">
           <NavLinks />
         </div>
-        <p className="label-mono border-t border-line px-4 py-3">Progress saved on this device</p>
+        <div className="border-t border-line px-3 py-3">
+          <p className="label-mono mb-2 px-1">Progress saved on this device</p>
+          <button type="button" onClick={logout} className="flex h-9 w-full items-center gap-2 rounded px-2 text-sm text-muted hover:bg-ink/5 hover:text-ink"><LogOut aria-hidden className="h-4 w-4" /> Sign out</button>
+        </div>
       </aside>
 
       <div className="app-main lg:pl-60">
